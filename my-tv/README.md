@@ -1,43 +1,52 @@
-# My TV: VU 4K (lushan), "Hall TV"
+# My TV: VU 4K (lushan)
 
-Google TV 12 (SDK 31), firmware STT2.230929.001.080, at `192.168.1.6` (give it a fixed address in the
-router). Built from [cleanyourtv](https://github.com/Gathin23/cleanyourtv) (MIT, vendored at the repo root),
-the project behind the "I hacked my old TV to make it feel brand new" video, and
-[glassOS-tv](https://github.com/jmarknavarro/glassOS-tv) (MIT, in `glassos/`).
+Google TV 12 (SDK 31), firmware STT2.230929.001.102, manufacturer HVCL, at `192.168.1.9` (give it a fixed
+address in the router). Set up on 2026-10-25 from `PROMPT-APPLE-TV.md`, using the tested
+`examples/vu-4k-lushan` list. Backup of packages, settings and props: `backup/vu-4k-lushan/` (git-ignored).
 
-## What is on the TV
+## What was done
 
-- **Debloat** (`debloat.txt`, from the tested `examples/vu-4k-lushan`): Vu ACR telemetry, Google feedback,
-  partner auto-installs, store demo mode, Odin browser, Vu Family Moment, Vu My Music, Alexa, the Google TV
-  setup wizard, and Google Assistant (to free memory; the TV remote's mic button no longer works). Kept by
-  choice: Play Games, Google TV app, MX Player, Chromecast, AirPlay, DLNA.
-- **Launcher**: `glassos/launcher`, glassOS-tv plus this repo's work: tvOS-style focus (spring lift, lean,
-  sheen, click), a tvOS app-launch zoom, a wallpaper screensaver, a faster Home, and the phone remote.
-  Stock `launcherx` is disabled. Dock: Apple TV, Netflix, YouTube, Prime Video.
-- **Phone remote**: open `http://192.168.1.6:8642` on a phone on the same Wi-Fi, or install the TV Remote
-  app from `http://192.168.1.6:8642/app.apk` (`glassos/phone`). Pair with the code the TV shows.
-- **Settings changed over adb**: Private DNS `p2.freedns.controld.com` (ads and tracking; AdGuard's server
-  was 56 ms away and slowed cold app starts by ~0.5 s), screensaver `com.gathin.tvhome/.WallpaperDream`,
-  overlay permission for the launcher.
-- **Wallpapers** (Luffy, True Detective, Haikyuu) are only on the TV, not in git. Add more from the phone.
+- **Debloat** (`debloat.txt`, all disabled, none uninstalled): Vu ACR telemetry, Google feedback, partner
+  auto-installs, store demo mode, Play Games, Google TV app, Odin browser, Family Moment, My Music, Alexa,
+  Google Assistant (the remote's mic button no longer works; the phone app has voice), the setup wizard.
+  Kept: Chromecast, AirPlay, Miracast, DLNA, OTA updates, USB media player, all com.vt TV services.
+- **Launcher**: `glassos/launcher`, now Home (stock `launcherx` disabled by the installer). Dock: Netflix,
+  YouTube, Prime Video, Hotstar, Sun NXT; `columns` = 5. Live TV app `com.vt.tv.tvcenter` (hidden tile, in
+  the Inputs menu); HDMI/AV come from `com.vt.source.external`.
+- **Phone remote**: `http://192.168.1.9:8642` on a phone on the same Wi-Fi; Android app at
+  `http://192.168.1.9:8642/app.apk`. Pair with the code the TV shows.
+- **Memory**: AirPlay, DLNA and Chromecast built-in disabled too (casting to this TV no longer works).
+- **Ad-blocking DNS**: `settings put global private_dns_specifier p2.freedns.controld.com` +
+  `private_dns_mode hostname` (27 ms away; NextDNS was 8 ms but blocks nothing without a profile, AdGuard
+  47 ms). Ad domains resolve to 127.0.0.1; YouTube, googlevideo and Netflix resolve normally.
+  Undo: `settings put global private_dns_mode off`.
+- **Phone**: TV Remote app on a Motorola Edge 70 Fusion, paired.
+- Launcher and phone app are signed with this Mac's debug key: always update from this Mac.
+- Google Assistant came back enabled once after the first debloat; re-disabled. Check with
+  `pm list packages -d | grep katniss` if the mic button starts working again.
 
-## Security notes
+## Speed (am start -W, ms)
 
-Keys for other apps need USB debugging left on. This TV's adbd trusts any connection from the TV itself
-(127.0.0.1) without a prompt, which is how the launcher starts its key helper; it also means any app on the
-TV could get a shell while debugging is on. From the network, unknown keys still get the "Allow USB
-debugging?" prompt. The phone remote is plain HTTP on the home network. Switches: `phone_remote`,
-`tvos_focus`, `focus_sounds` in `glassos/launcher/app/src/main/res/values/config.xml`.
+Wake from standby to Home: ~0.6 s (the TV suspends; a real cold boot only happens after unplugging).
 
-## Commands
+| App | Cold before | Cold after (memory + DNS) | Reopen |
+|---|---|---|---|
+| Netflix | 860 | 784 | 93 |
+| YouTube | 827 | 690 | 244 |
+| Prime Video | 1202 | 1431 | 90 |
+| Hotstar | 2676 | 1925 | 108 |
+| Sun NXT | 1489 | 1509 | 213 |
+| Apple TV | 986 | 960 | 349 |
+| SonyLIV | 1552 | 1345 | 112 |
+| ZEE5 | 1899 | 1812 | 105 |
 
-```sh
-export TV_HOST=192.168.1.6
-glassos/install.sh                                         # rebuild and update the launcher and phone app
-tools/venv/bin/python -I tools/check.py my-tv/debloat.txt  # after a firmware update: what came back
-tools/restore.sh my-tv/debloat.txt com.google.android.apps.tv.launcherx   # undo the debloat, stock Home back
-```
+With 1.8 GB RAM about 4-5 apps stay warm; after visiting 8, YouTube, Prime and Hotstar start cold again.
 
-The undo record is `~/.cleanyourtv/recovery-192.168.1.6-*.json`; the pre-change dumps are in `backup/vu-4k/`
-(git-ignored: they hold the TV's serial numbers). The launcher and phone app are signed with this Mac's
-debug key: update them from this Mac.
+## Undo
+
+    TV_HOST=192.168.1.9 tools/restore.sh my-tv/debloat.txt com.google.android.apps.tv.launcherx
+
+## Trade-offs
+
+USB debugging must stay on for the phone remote to press keys in other apps; while it is on, any app on the
+TV may get a shell through adbd on 127.0.0.1. The phone remote is plain HTTP on the home network.
